@@ -9,7 +9,8 @@ on:
       - main
 
 jobs:
-  build_and_deploy:
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
@@ -26,6 +27,7 @@ jobs:
       - name: Build Project
         run: npm run build
         env:
+          # Inject secrets so Vite can bundle them into the app
           API_KEY: ${{ secrets.API_KEY }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
@@ -33,6 +35,28 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    # Only deploy on pushes to the main branch
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
 
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
